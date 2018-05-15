@@ -109,6 +109,7 @@ public class MainActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_main);
         mCameraView = (CameraView) findViewById(R.id.camera);
         if (mCameraView != null) {
+            mCameraView.setAutoFocus(true);
             mCameraView.addCallback(mCallback);
         }
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.take_picture);
