@@ -90,7 +90,7 @@ public class CameraView extends FrameLayout {
     @SuppressWarnings("WrongConstant")
     public CameraView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        if (isInEditMode()){
+        if (isInEditMode()) {
             mCallbacks = null;
             mDisplayOrientationDetector = null;
             return;
@@ -98,9 +98,9 @@ public class CameraView extends FrameLayout {
         // Internal setup
         final PreviewImpl preview = createPreviewImpl(context);
         mCallbacks = new CallbackBridge();
-        if (Build.VERSION.SDK_INT < 21) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
             mImpl = new Camera1(mCallbacks, preview);
-        } else if (Build.VERSION.SDK_INT < 23) {
+        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             mImpl = new Camera2(mCallbacks, preview, context);
         } else {
             mImpl = new Camera2Api23(mCallbacks, preview, context);
@@ -146,7 +146,7 @@ public class CameraView extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        if (isInEditMode()){
+        if (isInEditMode()) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
             return;
         }
@@ -246,7 +246,7 @@ public class CameraView extends FrameLayout {
                 this.removeView(mImpl.getView());
             }
             //store the state and restore this state after fall back to Camera1
-            Parcelable state=onSaveInstanceState();
+            Parcelable state = onSaveInstanceState();
             // Camera2 uses legacy hardware layer; fall back to Camera1
             mImpl = new Camera1(mCallbacks, createPreviewImpl(getContext()));
             onRestoreInstanceState(state);
@@ -311,10 +311,10 @@ public class CameraView extends FrameLayout {
     }
 
     public View getView() {
-      if (mImpl != null) {
-        return mImpl.getView();
-      }
-      return null;
+        if (mImpl != null) {
+            return mImpl.getView();
+        }
+        return null;
     }
 
     /**
@@ -411,27 +411,33 @@ public class CameraView extends FrameLayout {
         mImpl.setFocusDepth(value);
     }
 
-    public float getFocusDepth() { return mImpl.getFocusDepth(); }
+    public float getFocusDepth() {
+        return mImpl.getFocusDepth();
+    }
 
     public void setZoom(float zoom) {
-      mImpl.setZoom(zoom);
+        mImpl.setZoom(zoom);
     }
 
     public float getZoom() {
-      return mImpl.getZoom();
+        return mImpl.getZoom();
     }
 
     public void setWhiteBalance(int whiteBalance) {
-      mImpl.setWhiteBalance(whiteBalance);
+        mImpl.setWhiteBalance(whiteBalance);
     }
 
     public int getWhiteBalance() {
-      return mImpl.getWhiteBalance();
+        return mImpl.getWhiteBalance();
     }
 
-    public void setScanning(boolean isScanning) { mImpl.setScanning(isScanning);}
+    public void setScanning(boolean isScanning) {
+        mImpl.setScanning(isScanning);
+    }
 
-    public boolean getScanning() { return mImpl.getScanning(); }
+    public boolean getScanning() {
+        return mImpl.getScanning();
+    }
 
     /**
      * Take a picture. The result will be returned to
@@ -444,14 +450,19 @@ public class CameraView extends FrameLayout {
     /**
      * Record a video and save it to file. The result will be returned to
      * {@link Callback#onVideoRecorded(CameraView, String)}.
-     * @param path Path to file that video will be saved to.
+     *
+     * @param path        Path to file that video will be saved to.
      * @param maxDuration Maximum duration of the recording, in seconds.
      * @param maxFileSize Maximum recording file size, in bytes.
-     * @param profile Quality profile of the recording.
+     * @param profile     Quality profile of the recording.
      */
     public boolean record(String path, int maxDuration, int maxFileSize,
-                          boolean recordAudio, CamcorderProfile profile) {
+            boolean recordAudio, CamcorderProfile profile) {
         return mImpl.record(path, maxDuration, maxFileSize, recordAudio, profile);
+    }
+
+    public boolean isRecording() {
+        return mImpl.isRecording();
     }
 
     public void stopRecording() {
@@ -633,10 +644,12 @@ public class CameraView extends FrameLayout {
         public void onVideoRecorded(CameraView cameraView, String path) {
         }
 
-        public void onFramePreview(CameraView cameraView, byte[] data, int width, int height, int orientation) {
+        public void onFramePreview(CameraView cameraView, byte[] data, int width, int height,
+                int orientation) {
         }
 
-        public void onMountError(CameraView cameraView) {}
+        public void onMountError(CameraView cameraView) {
+        }
     }
 
 }

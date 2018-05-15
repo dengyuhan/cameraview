@@ -378,6 +378,11 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     @Override
+    boolean isRecording() {
+        return mIsRecording;
+    }
+
+    @Override
     void stopRecording() {
         if (mIsRecording) {
             stopMediaRecorder();
