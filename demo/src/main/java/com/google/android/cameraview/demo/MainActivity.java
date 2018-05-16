@@ -17,29 +17,24 @@
 package com.google.android.cameraview.demo;
 
 import android.Manifest;
-import android.app.Dialog;
-import android.content.DialogInterface;
-import android.content.pm.PackageManager;
-import android.os.Build;
+import android.animation.ArgbEvaluator;
+import android.animation.ValueAnimator;
+import android.graphics.drawable.ColorDrawable;
+import android.media.CamcorderProfile;
+import android.media.MediaScannerConnection;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.support.annotation.NonNull;
-import android.support.annotation.StringRes;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.cameraview.AspectRatio;
@@ -49,15 +44,29 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+import permissions.dispatcher.NeedsPermission;
+import permissions.dispatcher.OnPermissionDenied;
+import permissions.dispatcher.RuntimePermissions;
 
 
 /**
  * This demo app saves the taken picture to a constant file.
  * $ adb pull /sdcard/Android/data/com.google.android.cameraview.demo/files/Pictures/picture.jpg
  */
+@RuntimePermissions
 public class MainActivity extends AppCompatActivity implements
-        ActivityCompat.OnRequestPermissionsResultCallback,
         AspectRatioFragment.Listener {
 
     private static final String TAG = "MainActivity";
@@ -86,9 +95,14 @@ public class MainActivity extends AppCompatActivity implements
 
     private int mCurrentFlash;
 
-    private CameraView mCameraView;
+    CameraView mCameraView;
+    TextView mRecordingTimeView;
+    ImageView mChangeModeView;
+    ImageView mShutterView;
 
-    private Handler mBackgroundHandler;
+    private Disposable mRecordingDisposable;
+
+    private boolean mModeTakePicture = true;//true拍照,false录像
 
     private View.OnClickListener mOnClickListener = new View.OnClickListener() {
         @Override
@@ -96,26 +110,47 @@ public class MainActivity extends AppCompatActivity implements
             switch (v.getId()) {
                 case R.id.take_picture:
                     if (mCameraView != null) {
-                        mCameraView.takePicture();
+                        if (mModeTakePicture) {
+                            mCameraView.takePicture();
+                        } else {
+                            if (mCameraView.isRecording()) {
+                                stopRecording();
+                            } else {
+                                MainActivityPermissionsDispatcher.onGrantedRecordAudioWithCheck(
+                                        MainActivity.this);
+                            }
+                        }
+                    }
+                    break;
+                case R.id.change_mode:
+                    if (mCameraView != null) {
+                        changeCameraMode(!mModeTakePicture);
                     }
                     break;
             }
         }
+
     };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         mCameraView = (CameraView) findViewById(R.id.camera);
         if (mCameraView != null) {
+            mCameraView.setAspectRatio(AspectRatio.of(16, 9));
             mCameraView.setAutoFocus(true);
             mCameraView.addCallback(mCallback);
         }
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.take_picture);
-        if (fab != null) {
-            fab.setOnClickListener(mOnClickListener);
-        }
+        MainActivityPermissionsDispatcher.onGrantedCameraWithCheck(this);
+
+        mRecordingTimeView = findViewById(R.id.tv_recording_time);
+        mChangeModeView = findViewById(R.id.change_mode);
+        mChangeModeView.setOnClickListener(mOnClickListener);
+        mShutterView = findViewById(R.id.take_picture);
+        mShutterView.setOnClickListener(mOnClickListener);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         ActionBar actionBar = getSupportActionBar();
@@ -127,21 +162,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onResume() {
         super.onResume();
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED) {
-            mCameraView.start();
-        } else if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                Manifest.permission.CAMERA)) {
-            ConfirmationDialogFragment
-                    .newInstance(R.string.camera_permission_confirmation,
-                            new String[]{Manifest.permission.CAMERA},
-                            REQUEST_CAMERA_PERMISSION,
-                            R.string.camera_permission_not_granted)
-                    .show(getSupportFragmentManager(), FRAGMENT_DIALOG);
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
-                    REQUEST_CAMERA_PERMISSION);
-        }
+        MainActivityPermissionsDispatcher.onGrantedCameraWithCheck(this);
     }
 
     @Override
@@ -150,34 +171,34 @@ public class MainActivity extends AppCompatActivity implements
         super.onPause();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (mBackgroundHandler != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                mBackgroundHandler.getLooper().quitSafely();
-            } else {
-                mBackgroundHandler.getLooper().quit();
-            }
-            mBackgroundHandler = null;
-        }
+    @NeedsPermission(Manifest.permission.CAMERA)
+    void onGrantedCamera() {
+        mCameraView.start();
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-            @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case REQUEST_CAMERA_PERMISSION:
-                if (permissions.length != 1 || grantResults.length != 1) {
-                    throw new RuntimeException("Error on requesting camera permission.");
-                }
-                if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, R.string.camera_permission_not_granted,
-                            Toast.LENGTH_SHORT).show();
-                }
-                // No need to start camera here; it is handled by onResume
-                break;
-        }
+    @OnPermissionDenied(Manifest.permission.CAMERA)
+    void onDeniedCamera() {
+        Toast.makeText(this, R.string.camera_permission_not_granted,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    @NeedsPermission({Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE})
+    void onGrantedRecordAudio() {
+        Toast.makeText(MainActivity.this, "开始录像",
+                Toast.LENGTH_SHORT).show();
+        File file = new File(
+                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                "video.mp4");
+        startRecordingTimer();
+        mCameraView.record(file.getAbsolutePath(), -1, -1, true,
+                CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
+    }
+
+    @OnPermissionDenied(Manifest.permission.RECORD_AUDIO)
+    void onDeniedRecordAudio() {
+        Toast.makeText(this, R.string.record_audio_permission_not_granted,
+                Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -226,13 +247,98 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    private Handler getBackgroundHandler() {
-        if (mBackgroundHandler == null) {
-            HandlerThread thread = new HandlerThread("background");
-            thread.start();
-            mBackgroundHandler = new Handler(thread.getLooper());
+    private Observable<File> pictureTakenObservable(final byte[] data) {
+        Toast.makeText(this, R.string.picture_taken, Toast.LENGTH_SHORT)
+                .show();
+        return Observable.create(new ObservableOnSubscribe<File>() {
+            @Override
+            public void subscribe(ObservableEmitter<File> emitter) throws Exception {
+                File file = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                        "picture.jpg");
+                OutputStream os = null;
+                try {
+                    os = new FileOutputStream(file);
+                    os.write(data);
+                    os.close();
+                    emitter.onNext(file);
+                } catch (IOException e) {
+                    Log.w(TAG, "Cannot write to " + file, e);
+                    emitter.onError(e);
+                } finally {
+                    if (os != null) {
+                        try {
+                            os.close();
+                        } catch (IOException e) {
+                            // Ignore
+                            emitter.onError(e);
+                        }
+                    }
+                }
+                emitter.onComplete();
+            }
+        }).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
+    }
+
+
+    private void asyncPictureTakenObservable(final byte[] data) {
+        pictureTakenObservable(data)
+                .subscribe(
+                        new Consumer<File>() {
+                            @Override
+                            public void accept(File file) throws Exception {
+                                Toast.makeText(MainActivity.this, file.getAbsolutePath(),
+                                        Toast.LENGTH_SHORT).show();
+                                MediaScannerConnection.scanFile(MainActivity.this,
+                                        new String[]{file.getAbsolutePath()}, new String[]{""},
+                                        null);
+
+                            }
+                        },
+                        new Consumer<Throwable>() {
+                            @Override
+                            public void accept(Throwable throwable) throws Exception {
+                                Toast.makeText(MainActivity.this, R.string.picture_taken_failed,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
+    }
+
+    public void startRecordingTimer() {
+        mRecordingTimeView.setVisibility(View.VISIBLE);
+        final SimpleDateFormat format = new SimpleDateFormat("mm:ss");
+        stopRecordingTimer();
+        mRecordingDisposable = Observable.interval(0, 1,
+                TimeUnit.SECONDS)
+                .map(new Function<Long, Long>() {
+                    @Override
+                    public Long apply(Long aLong) throws Exception {
+                        return aLong + 1;
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long seconds) throws Exception {
+                        String time = format.format(seconds * 1000);
+                        mRecordingTimeView.setText(time);
+                    }
+                });
+    }
+
+    private void stopRecording() {
+        Toast.makeText(MainActivity.this, "停止录像",
+                Toast.LENGTH_SHORT).show();
+        mCameraView.stopRecording();
+        stopRecordingTimer();
+        mRecordingTimeView.setVisibility(View.GONE);
+    }
+
+    private void stopRecordingTimer() {
+        if (mRecordingDisposable != null && !mRecordingDisposable.isDisposed()) {
+            mRecordingDisposable.dispose();
         }
-        return mBackgroundHandler;
     }
 
     private CameraView.Callback mCallback
@@ -251,84 +357,42 @@ public class MainActivity extends AppCompatActivity implements
         @Override
         public void onPictureTaken(CameraView cameraView, final byte[] data) {
             Log.d(TAG, "onPictureTaken " + data.length);
-            Toast.makeText(cameraView.getContext(), R.string.picture_taken, Toast.LENGTH_SHORT)
-                    .show();
-            getBackgroundHandler().post(new Runnable() {
-                @Override
-                public void run() {
-                    File file = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                            "picture.jpg");
-                    OutputStream os = null;
-                    try {
-                        os = new FileOutputStream(file);
-                        os.write(data);
-                        os.close();
-                    } catch (IOException e) {
-                        Log.w(TAG, "Cannot write to " + file, e);
-                    } finally {
-                        if (os != null) {
-                            try {
-                                os.close();
-                            } catch (IOException e) {
-                                // Ignore
-                            }
-                        }
-                    }
-                }
-            });
+            asyncPictureTakenObservable(data);
         }
 
     };
 
-    public static class ConfirmationDialogFragment extends DialogFragment {
 
-        private static final String ARG_MESSAGE = "message";
-        private static final String ARG_PERMISSIONS = "permissions";
-        private static final String ARG_REQUEST_CODE = "request_code";
-        private static final String ARG_NOT_GRANTED_MESSAGE = "not_granted_message";
+    private void changeCameraMode(boolean takePicture) {
+        mModeTakePicture = takePicture;
 
-        public static ConfirmationDialogFragment newInstance(@StringRes int message,
-                String[] permissions, int requestCode, @StringRes int notGrantedMessage) {
-            ConfirmationDialogFragment fragment = new ConfirmationDialogFragment();
-            Bundle args = new Bundle();
-            args.putInt(ARG_MESSAGE, message);
-            args.putStringArray(ARG_PERMISSIONS, permissions);
-            args.putInt(ARG_REQUEST_CODE, requestCode);
-            args.putInt(ARG_NOT_GRANTED_MESSAGE, notGrantedMessage);
-            fragment.setArguments(args);
-            return fragment;
-        }
+        final int icon =
+                mModeTakePicture ? R.drawable.icon_recording : R.drawable.icon_take_picture;
+        mChangeModeView.setImageResource(icon);
 
-        @NonNull
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            final Bundle args = getArguments();
-            return new AlertDialog.Builder(getActivity())
-                    .setMessage(args.getInt(ARG_MESSAGE))
-                    .setPositiveButton(android.R.string.ok,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    String[] permissions = args.getStringArray(ARG_PERMISSIONS);
-                                    if (permissions == null) {
-                                        throw new IllegalArgumentException();
-                                    }
-                                    ActivityCompat.requestPermissions(getActivity(),
-                                            permissions, args.getInt(ARG_REQUEST_CODE));
-                                }
-                            })
-                    .setNegativeButton(android.R.string.cancel,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    Toast.makeText(getActivity(),
-                                            args.getInt(ARG_NOT_GRANTED_MESSAGE),
-                                            Toast.LENGTH_SHORT).show();
-                                }
-                            })
-                    .create();
-        }
+        final ColorDrawable drawable = (ColorDrawable) mShutterView.getDrawable();
+        int colorRes = mModeTakePicture ? R.color.whiteTranslucent : R.color.redTranslucent;
+        final int targetColor = getResources().getColor(colorRes);
+        ValueAnimator colorAnimator = ValueAnimator.ofInt(drawable.getColor(), targetColor);
+        colorAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                int color = (int) animation.getAnimatedValue();
+                mShutterView.setImageDrawable(new ColorDrawable(color));
+            }
+        });
+        colorAnimator.setEvaluator(new ArgbEvaluator());
+        colorAnimator.setDuration(500);
+        colorAnimator.start();
+    }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+            @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // NOTE: delegate the permission handling to generated method
+        MainActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode,
+                grantResults);
     }
 
 }

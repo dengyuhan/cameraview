@@ -18,7 +18,7 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/primary"
+    android:background="@android:color/black"
     tools:context=".MainActivity">
 
     <com.google.android.cameraview.CameraView
@@ -39,13 +39,39 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"/>
 
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/take_picture"
-        android:layout_width="wrap_content"
+    <RelativeLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:layout_marginBottom="@dimen/activity_vertical_margin">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/take_picture"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_centerHorizontal="true"
+            android:src="@color/whiteTranslucent"
+            app:civ_border_color="@android:color/white"
+            app:civ_border_width="5dp"/>
+
+        <ImageView
+            android:id="@+id/change_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="48dp"
+            android:layout_toRightOf="@id/take_picture"
+            android:src="@drawable/icon_recording"/>
+    </RelativeLayout>
+
+    <TextView
+        android:visibility="gone"
+        android:textSize="18sp"
+        android:id="@+id/tv_recording_time"
+        android:textColor="@android:color/white"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
         android:layout_centerHorizontal="true"
-        app:srcCompat="@drawable/ic_camera"
-        app:useCompatPadding="true"/>
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
 
 </RelativeLayout>
