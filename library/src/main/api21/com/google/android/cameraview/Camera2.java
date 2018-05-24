@@ -448,7 +448,6 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
                 }
 
                 Size size = chooseOptimalSize();
-                Log.d("----------->", size.getWidth() + "-->" + size.getHeight());
                 mPreview.setBufferSize(size.getWidth(), size.getHeight());
                 Surface surface = mPreview.getSurface();
                 Surface mMediaRecorderSurface = mMediaRecorder.getSurface();

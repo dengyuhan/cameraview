@@ -190,9 +190,9 @@ public class MainActivity extends AppCompatActivity implements
         File file = new File(
                 getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                 "video.mp4");
-        startRecordingTimer();
         mCameraView.record(file.getAbsolutePath(), -1, -1, true,
                 CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
+        startRecordingTimer();
     }
 
     @OnPermissionDenied(Manifest.permission.RECORD_AUDIO)
