@@ -142,6 +142,7 @@ public class MainActivity extends AppCompatActivity implements
             mCameraView.setAspectRatio(AspectRatio.of(16, 9));
             mCameraView.setAutoFocus(true);
             mCameraView.addCallback(mCallback);
+            mCameraView.setScanning(true);
         }
         MainActivityPermissionsDispatcher.onGrantedCameraWithCheck(this);
 

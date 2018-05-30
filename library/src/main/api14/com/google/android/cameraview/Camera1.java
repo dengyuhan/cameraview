@@ -22,8 +22,11 @@ import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.Build;
+import android.os.Environment;
 import android.support.v4.util.SparseArrayCompat;
 import android.view.SurfaceHolder;
+
+import com.google.android.cameraview.encoder.AudioRecorderHandlerThread;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,7 +73,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
 
     private final Camera.CameraInfo mCameraInfo = new Camera.CameraInfo();
 
-    private MediaRecorder mMediaRecorder;
+    //private MediaRecorder mMediaRecorder;
 
     private String mVideoPath;
 
@@ -98,8 +101,14 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
 
     private boolean mIsScanning;
 
+    private AudioRecorderHandlerThread mRecorderThread;
+
     Camera1(Callback callback, PreviewImpl preview) {
         super(callback, preview);
+        final File dir = mPreview.getView().getContext().getExternalFilesDir(
+                Environment.DIRECTORY_PICTURES);
+        File file = new File(dir, dir.listFiles().length + ".mp4");
+        mRecorderThread = new AudioRecorderHandlerThread(file.getAbsolutePath());
         preview.setCallback(new PreviewImpl.Callback() {
             @Override
             public void onSurfaceChanged() {
@@ -139,7 +148,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             mCamera.setPreviewCallback(null);
         }
         mShowingPreview = false;
-        if (mMediaRecorder != null) {
+        /*if (mMediaRecorder != null) {
             mMediaRecorder.stop();
             mMediaRecorder.release();
             mMediaRecorder = null;
@@ -148,6 +157,11 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
                 mCallback.onVideoRecorded(mVideoPath);
                 mIsRecording = false;
             }
+        }*/
+        if (mIsRecording) {
+            mRecorderThread.stopRecording();
+            mCallback.onVideoRecorded(mVideoPath);
+            mIsRecording = false;
         }
         releaseCamera();
     }
@@ -364,7 +378,9 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     boolean record(String path, int maxDuration, int maxFileSize, boolean recordAudio,
             CamcorderProfile profile) {
         if (!mIsRecording) {
-            setUpMediaRecorder(path, maxDuration, maxFileSize, recordAudio, profile);
+            mRecorderThread.startRecording();
+            mIsRecording = true;
+            /*setUpMediaRecorder(path, maxDuration, maxFileSize, recordAudio, profile);
             try {
                 mMediaRecorder.prepare();
                 mMediaRecorder.start();
@@ -373,7 +389,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             } catch (IOException e) {
                 e.printStackTrace();
                 return false;
-            }
+            }*/
         }
         return false;
     }
@@ -684,22 +700,25 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
         Camera.Size previewSize = mCameraParameters.getPreviewSize();
+        if (isRecording()) {
+            mRecorderThread.sendEncodeFrame(data, previewSize.width, previewSize.height);
+        }
         mCallback.onFramePreview(data, previewSize.width, previewSize.height, mDisplayOrientation);
     }
 
     private void setUpMediaRecorder(String path, int maxDuration, int maxFileSize,
             boolean recordAudio, CamcorderProfile profile) {
-        mMediaRecorder = new MediaRecorder();
+        //mMediaRecorder = new MediaRecorder();
         mCamera.unlock();
 
-        mMediaRecorder.setCamera(mCamera);
+        /*mMediaRecorder.setCamera(mCamera);
 
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         if (recordAudio) {
             mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
         }
 
-        mMediaRecorder.setOutputFile(path);
+        mMediaRecorder.setOutputFile(path);*/
         mVideoPath = path;
 
         if (CamcorderProfile.hasProfile(mCameraId, profile.quality)) {
@@ -708,7 +727,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             setCamcorderProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH), recordAudio);
         }
 
-        mMediaRecorder.setOrientationHint(calcDisplayOrientation(mDisplayOrientation));
+       /* mMediaRecorder.setOrientationHint(calcDisplayOrientation(mDisplayOrientation));
 
         if (maxDuration != -1) {
             mMediaRecorder.setMaxDuration(maxDuration);
@@ -718,12 +737,12 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
         }
 
         mMediaRecorder.setOnInfoListener(this);
-        mMediaRecorder.setOnErrorListener(this);
+        mMediaRecorder.setOnErrorListener(this);*/
     }
 
     private void stopMediaRecorder() {
         mIsRecording = false;
-        if (mMediaRecorder != null) {
+        /*if (mMediaRecorder != null) {
             try {
                 mMediaRecorder.stop();
             } catch (RuntimeException ex) {
@@ -732,7 +751,8 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             mMediaRecorder.reset();
             mMediaRecorder.release();
             mMediaRecorder = null;
-        }
+        }*/
+        mRecorderThread.stopRecording();
 
         if (mVideoPath == null || !new File(mVideoPath).exists()) {
             mCallback.onVideoRecorded(null);
@@ -744,7 +764,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     private void setCamcorderProfile(CamcorderProfile profile, boolean recordAudio) {
-        mMediaRecorder.setOutputFormat(profile.fileFormat);
+        /*mMediaRecorder.setOutputFormat(profile.fileFormat);
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
         mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
         mMediaRecorder.setVideoEncodingBitRate(profile.videoBitRate);
@@ -754,7 +774,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             mMediaRecorder.setAudioChannels(profile.audioChannels);
             mMediaRecorder.setAudioSamplingRate(profile.audioSampleRate);
             mMediaRecorder.setAudioEncoder(profile.audioCodec);
-        }
+        }*/
     }
 
     @Override
