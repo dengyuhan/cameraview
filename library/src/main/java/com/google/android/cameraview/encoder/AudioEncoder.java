@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2016 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 package com.google.android.cameraview.encoder;
 
@@ -25,22 +10,17 @@ import android.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * @author: sq
- * @date: 2017/7/26
- * @corporation: 深圳市思迪信息科技有限公司
- * @description: 音频编、解码类
- */
 public class AudioEncoder {
-    //    private static final String TAG = AudioEncoder.class.getSimpleName();
     private static final String TAG = "AudioEncoder";
 
     private static final String MIME_TYPE = "audio/mp4a-latm";
-    private static final int SAMPLE_RATE = 44100;
-    private static final int BIT_RATE = 64000;
+    private static final int DEFAULT_CHANNEL_COUNT = 1;
+    private static final int DEFAULT_SAMPLE_RATE = 44100;
+    private static final int DEFAULT_BIT_RATE = 64000;
     private static final int TIMEOUT_US = 10000;
-    private MediaCodec audioEncoder;
-    private MediaFormat audioFormat;
+
+    private MediaCodec mAudioEncoder;
+    private MediaFormat mAudioFormat;
 
     private boolean isEncoding;
 
@@ -51,38 +31,39 @@ public class AudioEncoder {
     private long prevOutputPTSUs = 0;
 
     public AudioEncoder(MediaMuxerWrapper mux) {
+        this(mux, DEFAULT_SAMPLE_RATE, DEFAULT_BIT_RATE);
+    }
+
+    public AudioEncoder(MediaMuxerWrapper mux, int sampleRate, int bitRate) {
         muxer = mux;
         bufferInfo = new MediaCodec.BufferInfo();
 
         try {
-            audioEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
+            mAudioEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        audioFormat = MediaFormat.createAudioFormat(MIME_TYPE,
-                SAMPLE_RATE,
-                1);
-        audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
-        audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, SAMPLE_RATE);
-        //optional stuff
-        audioFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_IN_MONO);
-        audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE,
+        mAudioFormat = MediaFormat.createAudioFormat(MIME_TYPE,
+                sampleRate,
+                DEFAULT_CHANNEL_COUNT);
+        mAudioFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_IN_MONO);
+        mAudioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE,
                 MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-        audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE);
+        mAudioFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
 
-        audioEncoder.configure(audioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        mAudioEncoder.configure(mAudioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
     }
 
     public void start() {
         Log.d(TAG, "音频开始编码--->" + Thread.currentThread().getName());
-        audioEncoder.start();
+        mAudioEncoder.start();
         isEncoding = true;
     }
 
     public void stop() {
         Log.d(TAG, "音频停止编码编码--->" + Thread.currentThread().getName());
-        audioEncoder.stop();
+        mAudioEncoder.stop();
 //        muxer.stopMuxing();
         isEncoding = false;
     }
@@ -90,10 +71,10 @@ public class AudioEncoder {
     public void encode(ByteBuffer rawBuffer, int length, long presentationTimeUs) {
         //get input buffer
         if (isEncoding) {
-            final ByteBuffer[] inputBuffers = audioEncoder.getInputBuffers();
+            final ByteBuffer[] inputBuffers = mAudioEncoder.getInputBuffers();
 
             //dequeue input buffer
-            final int inputBufferIndex = audioEncoder.dequeueInputBuffer(TIMEOUT_US);
+            final int inputBufferIndex = mAudioEncoder.dequeueInputBuffer(TIMEOUT_US);
             if (inputBufferIndex >= 0) {
                 final ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
                 inputBuffer.clear();
@@ -104,11 +85,11 @@ public class AudioEncoder {
                 }
                 if (length <= 0) {
                     ////enqueue bytebuffer with EOS
-                    audioEncoder.queueInputBuffer(inputBufferIndex, 0, 0, presentationTimeUs,
+                    mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, 0, presentationTimeUs,
                             MediaCodec.BUFFER_FLAG_END_OF_STREAM);
                 } else {
                     ////enqueue bytebuffer
-                    audioEncoder.queueInputBuffer(inputBufferIndex, 0, length, presentationTimeUs,
+                    mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, length, presentationTimeUs,
                             0);
                 }
             } else {
@@ -123,11 +104,11 @@ public class AudioEncoder {
     }
 
     public void sendToMediaMuxer() {
-        if (audioEncoder == null) return;
+        if (mAudioEncoder == null) return;
 
-        final ByteBuffer[] outputBuffers = audioEncoder.getOutputBuffers();
+        final ByteBuffer[] outputBuffers = mAudioEncoder.getOutputBuffers();
 
-        final int outputBufferIndex = audioEncoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_US);
+        final int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_US);
         if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             muxer.addAudioEncoder(this);
             muxer.startMuxing();
@@ -143,7 +124,7 @@ public class AudioEncoder {
             }
             final ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
             muxer.muxAudio(outputBuffer, bufferInfo);
-            audioEncoder.releaseOutputBuffer(outputBufferIndex, false);
+            mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
         } else {
             //Log.d(TAG, "输入缓冲区索引小于零");
         }
@@ -151,7 +132,7 @@ public class AudioEncoder {
     }
 
     public MediaCodec getEncoder() {
-        return audioEncoder;
+        return mAudioEncoder;
     }
 
     protected long getPTSUs() {

@@ -188,10 +188,10 @@ public class MainActivity extends AppCompatActivity implements
     void onGrantedRecordAudio() {
         Toast.makeText(MainActivity.this, "开始录像",
                 Toast.LENGTH_SHORT).show();
-        File file = new File(
-                getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "video.mp4");
-        mCameraView.record(file.getAbsolutePath(), -1, -1, true,
+        final File dir = getExternalFilesDir(
+                Environment.DIRECTORY_PICTURES);
+        File file = new File(dir, dir.listFiles().length + ".mp4");
+        mCameraView.record(file.getAbsolutePath(), -1, -1, false,
                 CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
         startRecordingTimer();
     }

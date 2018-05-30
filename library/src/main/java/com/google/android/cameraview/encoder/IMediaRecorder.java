@@ -8,8 +8,7 @@ import android.media.CamcorderProfile;
  *         created 2018/5/30 15:52
  */
 public interface IMediaRecorder {
-
-    void setCamcorderProfile(CamcorderProfile profile, boolean recordAudio);
+    void setupMediaRecorder(String outputPath, boolean recordAudio, CamcorderProfile profile);
 
     void startRecording();
 

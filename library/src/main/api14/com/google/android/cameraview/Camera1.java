@@ -22,9 +22,7 @@ import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.Build;
-import android.os.Environment;
 import android.support.v4.util.SparseArrayCompat;
-import android.util.Log;
 import android.view.SurfaceHolder;
 
 import com.google.android.cameraview.encoder.MediaRecorderThread;
@@ -104,10 +102,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
 
     Camera1(Callback callback, PreviewImpl preview) {
         super(callback, preview);
-        final File dir = mPreview.getView().getContext().getExternalFilesDir(
-                Environment.DIRECTORY_PICTURES);
-        File file = new File(dir, dir.listFiles().length + ".mp4");
-        mRecorderThread = new MediaRecorderThread(file.getAbsolutePath());
+        mRecorderThread = new MediaRecorderThread();
         preview.setCallback(new PreviewImpl.Callback() {
             @Override
             public void onSurfaceChanged() {
@@ -699,7 +694,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     public void onPreviewFrame(byte[] data, Camera camera) {
         Camera.Size previewSize = mCameraParameters.getPreviewSize();
         if (isRecording()) {
-            Log.d("onPreviewFrame--->", previewSize.width + " " + previewSize.height);
+            //Log.d("onPreviewFrame--->", previewSize.width + " " + previewSize.height);
             mRecorderThread.sendEncodeFrame(data, previewSize.width, previewSize.height);
         }
         mCallback.onFramePreview(data, previewSize.width, previewSize.height, mDisplayOrientation);
@@ -721,10 +716,16 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
         mVideoPath = path;
 
         if (CamcorderProfile.hasProfile(mCameraId, profile.quality)) {
-            setCamcorderProfile(profile, recordAudio);
+            //setCamcorderProfile(profile, recordAudio);
         } else {
-            setCamcorderProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH), recordAudio);
+            //setCamcorderProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH), recordAudio);
+            profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
         }
+
+        final Camera.Size previewSize = mCameraParameters.getPreviewSize();
+        profile.videoFrameWidth = previewSize.width;
+        profile.videoFrameHeight = previewSize.height;
+        mRecorderThread.setupMediaRecorder(path, recordAudio, profile);
 
        /* mMediaRecorder.setOrientationHint(calcDisplayOrientation(mDisplayOrientation));
 
@@ -762,10 +763,6 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     private void setCamcorderProfile(CamcorderProfile profile, boolean recordAudio) {
-        final Camera.Size previewSize = mCameraParameters.getPreviewSize();
-        profile.videoFrameWidth = previewSize.width;
-        profile.videoFrameHeight = previewSize.height;
-        mRecorderThread.setCamcorderProfile(profile, recordAudio);
         /*mMediaRecorder.setOutputFormat(profile.fileFormat);
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
         mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);

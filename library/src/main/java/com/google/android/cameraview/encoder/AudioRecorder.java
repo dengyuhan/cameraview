@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2016 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 package com.google.android.cameraview.encoder;
 
@@ -24,19 +9,13 @@ import android.util.Log;
 import java.nio.ByteBuffer;
 
 /**
- * @author: sq
- * @date: 2017/7/26
- * @corporation: 深圳市思迪信息科技有限公司
- * @description: 音频录制类
- * a wrapper around android's AudioRecord class
- * meant to record audio from microphone input
- * to be operated from the a HandlerThread (MediaRecorderThread)
+ * 音频录制
  */
 public class AudioRecorder {
-    //    private static final String TAG = AudioRecorder.class.getSimpleName();
     private static final String TAG = "AudioRecorder";
+
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.MIC;
-    private static final int SAMPLE_RATE = 44100;
+    private static final int DEFAULT_SAMPLE_RATE = 44100;
     private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
 
@@ -52,19 +31,23 @@ public class AudioRecorder {
     private boolean isRecording;
 
     public AudioRecorder(AudioEncoder encoder) {
+        this(encoder, DEFAULT_SAMPLE_RATE);
+    }
+
+    public AudioRecorder(AudioEncoder encoder, int sampleRate) {
         audioEncoder = encoder;
-        bufferSizeInBytes = AudioRecord.getMinBufferSize(SAMPLE_RATE,
+        bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRate,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT);
 
-        //todo understand this logic
+        /*//todo understand this logic
         int bufferSize = SAMPLES_PER_FRAME * FRAMES_PER_BUFFER;
         if (bufferSize < bufferSizeInBytes) {
             bufferSize = ((bufferSizeInBytes / SAMPLES_PER_FRAME) + 1) * SAMPLES_PER_FRAME * 2;
-        }
+        }*/
 
         mAudioRecord = new AudioRecord(AUDIO_SOURCE,
-                SAMPLE_RATE,
+                sampleRate,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT,
                 bufferSizeInBytes);
@@ -106,9 +89,7 @@ public class AudioRecorder {
 
     public void sendEOS() {
         final ByteBuffer bytebuffer = ByteBuffer.allocateDirect(SAMPLES_PER_FRAME);
-        int bufferReadResult;
-
-        bufferReadResult = mAudioRecord.read(bytebuffer, SAMPLES_PER_FRAME);
+        int bufferReadResult = mAudioRecord.read(bytebuffer, SAMPLES_PER_FRAME);
         audioEncoder.encode(bytebuffer, 0, audioEncoder.getPTSUs());
     }
 

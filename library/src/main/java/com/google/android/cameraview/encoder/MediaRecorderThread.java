@@ -2,6 +2,7 @@
 package com.google.android.cameraview.encoder;
 
 import android.media.CamcorderProfile;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -22,7 +23,7 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
 
     private static final int MSG_RECORDING_START = 100;
     private static final int MSG_RECORDING_STOP = 101;
-    private static final int MSG_CAMCORDER_PROFILE = 103;
+    private static final int MSG_SETUP_MEDIARECORDER = 103;
     private static final int MSG_ENCODE_VIDEO = 104;
 
     /* AudioRecord object to record audio from microphone input */
@@ -39,13 +40,11 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
 
     private boolean mRecording;
 
+    private boolean mRecordAudio;
 
-    public MediaRecorderThread(String outputFile) {
+
+    public MediaRecorderThread() {
         super("RecorderThread");
-        mMediaMuxer = new MediaMuxerWrapper(outputFile);
-        mAudioEncoder = new AudioEncoder(mMediaMuxer);
-        mAudioRecorder = new AudioRecorder(mAudioEncoder);
-        //mVideoEncoder = new VideoEncoder(mMediaMuxer, 1080, 1920);//42000000
         start();
     }
 
@@ -68,8 +67,11 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
             case MSG_RECORDING_STOP:
                 handleStopRecording();
                 break;
-            case MSG_CAMCORDER_PROFILE:
-                handleCamcorderProfile((CamcorderProfile) message.obj);
+            case MSG_SETUP_MEDIARECORDER:
+                final Bundle data = message.getData();
+                boolean recordAudio = data.getBoolean("record_audio");
+                String outputPath = data.getString("output_path");
+                handleSetupMediaRecorder(outputPath, recordAudio, (CamcorderProfile) message.obj);
                 break;
             case MSG_ENCODE_VIDEO:
                 handleEncodeFrame((byte[]) message.obj, message.arg1, message.arg2);
@@ -78,46 +80,72 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
         return true;
     }
 
+    private void handleSetupMediaRecorder(String outputPath, boolean recordAudio,
+            CamcorderProfile profile) {
+        this.mRecordAudio = recordAudio;
+        Log.d("CamcorderProfile---->",
+                profileToString(profile) + "--" + Thread.currentThread().getName());
+
+        this.mMediaMuxer = new MediaMuxerWrapper(outputPath,
+                recordAudio ? MediaMuxerWrapper.TOTAL_TRACK_COUNT
+                        : MediaMuxerWrapper.VIDEO_TRACK_COUNT);
+
+        //编码器的宽高调换
+        int width = profile.videoFrameHeight;
+        int height = profile.videoFrameWidth;
+        /*mVideoEncoder = new VideoEncoder(mMediaMuxer, width, height,
+                profile.videoFrameRate, profile.videoBitRate);*/
+        mVideoEncoder = new VideoEncoder(mMediaMuxer, width, height);
+        if (mRecordAudio) {
+            //音频配置
+            /*mAudioEncoder = new AudioEncoder(mMediaMuxer, profile.audioSampleRate,
+                    profile.audioBitRate);*/
+            mAudioEncoder = new AudioEncoder(mMediaMuxer);
+            //mAudioRecorder = new AudioRecorder(mAudioEncoder, profile.audioSampleRate);
+            mAudioRecorder = new AudioRecorder(mAudioEncoder);
+        }
+    }
+
     private void handleEncodeFrame(byte[] data, int width, int height) {
-        Log.d("handleEncodeFrame-->",
-                data.length + " " + width + " " + height + " " + Thread.currentThread().getName());
+        //Log.d("handleEncodeFrame-->",data.length + " " + width + " " + height + " " + Thread
+        // .currentThread().getName());
         final byte[] tempData = YUVRotateUtil.rotateYUV420Degree90(data, width, height);
 
         mVideoEncoder.encode(tempData, tempData.length,
                 mVideoEncoder.getPTSUs());
     }
 
-    private void handleCamcorderProfile(CamcorderProfile profile) {
-        Log.d("CamcorderProfile---->",
-                profileToString(profile) + "--" + Thread.currentThread().getName());
-        //编码器的宽高调换
-        int width = profile.videoFrameHeight;
-        int height = profile.videoFrameWidth;
-        mVideoEncoder = new VideoEncoder(mMediaMuxer, width, height, profile.videoFrameRate,
-                profile.videoBitRate);
-        //mVideoEncoder = new VideoEncoder(mMediaMuxer, width, height);
-    }
-
 
     private void handleStartRecording() {
         mRecording = true;
         //mCallback.sendMessage(Message.obtain(null, Messages.MSG_RECORDING_START_CALLBACK));
-        mAudioRecorder.start();
-        mAudioEncoder.start();
+        if (mRecordAudio) {
+            mAudioRecorder.start();
+            mAudioEncoder.start();
+        }
         mVideoEncoder.start();
-        mAudioRecorder.record();
+        if (mRecordAudio) {
+            mAudioRecorder.record();
+        }
     }
 
     private void handleStopRecording() {
         mRecording = false;
         //mCallback.sendMessage(Message.obtain(null, Messages.MSG_RECORDING_STOP_CALLBACK));
-        mAudioRecorder.stopRecording();
+        if (mRecordAudio) {
+            mAudioRecorder.stopRecording();
+        }
         mVideoEncoder.stop();
     }
 
     @Override
-    public void setCamcorderProfile(CamcorderProfile profile, boolean recordAudio) {
-        Message msg = Message.obtain(null, MSG_CAMCORDER_PROFILE, profile);
+    public void setupMediaRecorder(String outputPath, boolean recordAudio,
+            CamcorderProfile profile) {
+        Message msg = Message.obtain(null, MSG_SETUP_MEDIARECORDER, profile);
+        Bundle data = new Bundle();
+        data.putBoolean("record_audio", recordAudio);
+        data.putString("output_path", outputPath);
+        msg.setData(data);
         mRecorderHandler.sendMessage(msg);
     }
 
@@ -129,7 +157,9 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
 
     @Override
     public void stopRecording() {
-        mAudioRecorder.setIsRecordingFalse();
+        if (mRecordAudio) {
+            mAudioRecorder.setIsRecordingFalse();
+        }
         Message msg = Message.obtain(null, MSG_RECORDING_STOP);
         mRecorderHandler.sendMessage(msg);
     }
