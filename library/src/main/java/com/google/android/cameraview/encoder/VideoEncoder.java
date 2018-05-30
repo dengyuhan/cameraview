@@ -33,73 +33,66 @@ import java.nio.ByteBuffer;
 public class VideoEncoder {
     //    private static final String TAG = VideoEncoder.class.getSimpleName();
     private static final String TAG = "VideoEncoder";
+
     private static final String MIME_TYPE = "video/avc";
-    private static final int FRAME_RATE = 20;
-    private static final int COLOR_FORMAT =
+    private static final int DEFAULT_FRAME_RATE = 20;
+    private static final int DEFAULT_COLOR_FORMAT =
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar;
-    private int bitRate;
 
     private static final int TIMEOUT_US = 10000;
-    private MediaCodec videoEncoder;
-    private MediaFormat videoFormat;
-    private static VideoEncoder instance;
+
+    private MediaCodec mVideoCodec;
+    private MediaFormat mOutputFormat;
     private int mWidth;
     private int mHeight;
 
     private boolean isEncoding;
 
-    private MediaCodec.BufferInfo bufferInfo;
+    private MediaCodec.BufferInfo mBufferInfo;
 
     private MediaMuxerWrapper muxer;
 
     private long prevOutputPTSUs = 0;
 
     public VideoEncoder(MediaMuxerWrapper mux, int width, int height) {
-        mWidth = width;
-        mHeight = height;
-        instance = this;
+        this(mux, width, height, DEFAULT_FRAME_RATE, getDefaultVideoBitRate(width, height));
+    }
+
+    public VideoEncoder(MediaMuxerWrapper mux, int width, int height, int frameRate, int bitRate) {
+        this(mux, width, height, frameRate, bitRate, DEFAULT_COLOR_FORMAT);
+    }
+
+    public VideoEncoder(MediaMuxerWrapper mux, int width, int height, int frameRate, int bitRate,
+            int colorFormat) {
+        this.mWidth = width;
+        this.mHeight = height;
+        this.mBufferInfo = new MediaCodec.BufferInfo();
         muxer = mux;
-        bufferInfo = new MediaCodec.BufferInfo();
 
         try {
-            videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
+            mVideoCodec = MediaCodec.createEncoderByType(MIME_TYPE);
+
+            mOutputFormat = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
+            mOutputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
+            mOutputFormat.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
+            mOutputFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, colorFormat);
+            mOutputFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+
+            mVideoCodec.configure(mOutputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
-        bitRate = width * height * 3 / 2;
-        videoFormat = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
-        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
-        videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
-        videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, COLOR_FORMAT);
-        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-
-        videoEncoder.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-
-//        audioFormat = MediaFormat.createAudioFormat(MIME_TYPE,
-//                SAMPLE_RATE,
-//                1);
-//        audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
-//        audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, SAMPLE_RATE);
-//        //optional stuff
-//        audioFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_IN_MONO);
-//        audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel
-// .AACObjectLC);
-//        audioFormat.setInteger(MediaFormat.KEY_BIT_RATE,BIT_RATE);
-//
-//        audioEncoder.configure(audioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
     }
 
     public void start() {
         Log.d(TAG, "视频开始编码-->" + Thread.currentThread().getName());
-        videoEncoder.start();
+        mVideoCodec.start();
         isEncoding = true;
     }
 
     public void stop() {
         Log.d(TAG, "视频停止编码-->" + Thread.currentThread().getName());
-        videoEncoder.stop();
+        mVideoCodec.stop();
         muxer.stopMuxing();
         isEncoding = false;
     }
@@ -112,10 +105,10 @@ public class VideoEncoder {
             NV21ToNV12(input, yuv420sp, mWidth, mHeight);
             input = yuv420sp;
 
-            final ByteBuffer[] inputBuffers = videoEncoder.getInputBuffers();
+            final ByteBuffer[] inputBuffers = mVideoCodec.getInputBuffers();
 
             //dequeue input buffer
-            final int inputBufferIndex = videoEncoder.dequeueInputBuffer(TIMEOUT_US);
+            final int inputBufferIndex = mVideoCodec.dequeueInputBuffer(TIMEOUT_US);
             if (inputBufferIndex >= 0) {
                 final ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
                 inputBuffer.clear();
@@ -126,11 +119,11 @@ public class VideoEncoder {
                 }
                 if (length <= 0) {
                     ////enqueue bytebuffer with EOS
-                    videoEncoder.queueInputBuffer(inputBufferIndex, 0, 0, presentationTimeUs,
+                    mVideoCodec.queueInputBuffer(inputBufferIndex, 0, 0, presentationTimeUs,
                             MediaCodec.BUFFER_FLAG_END_OF_STREAM);
                 } else {
                     ////enqueue bytebuffer
-                    videoEncoder.queueInputBuffer(inputBufferIndex, 0, input.length,
+                    mVideoCodec.queueInputBuffer(inputBufferIndex, 0, input.length,
                             presentationTimeUs, 0);
                 }
             } else {
@@ -145,27 +138,27 @@ public class VideoEncoder {
     }
 
     public void sendToMediaMuxer() {
-        if (videoEncoder == null) return;
+        if (mVideoCodec == null) return;
 
-        final ByteBuffer[] outputBuffers = videoEncoder.getOutputBuffers();
+        final ByteBuffer[] outputBuffers = mVideoCodec.getOutputBuffers();
 
-        final int outputBufferIndex = videoEncoder.dequeueOutputBuffer(bufferInfo, TIMEOUT_US);
+        final int outputBufferIndex = mVideoCodec.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
         if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             muxer.addVideoEncoder(this);
             muxer.startMuxing();
         }
         if (outputBufferIndex >= 0) {
-            if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+            if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                 // You shoud set output format to muxer here when you target Android4.3 or less
                 // but MediaCodec#getOutputFormat can not call here(because
                 // INFO_OUTPUT_FORMAT_CHANGED don't come yet)
                 // therefor we should expand and prepare output format from buffer data.
                 // This sample is for API>=18(>=Android 4.3), just ignore this flag here
-                bufferInfo.size = 0;
+                mBufferInfo.size = 0;
             }
             final ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
-            muxer.muxVideo(outputBuffer, bufferInfo);
-            videoEncoder.releaseOutputBuffer(outputBufferIndex, false);
+            muxer.muxVideo(outputBuffer, mBufferInfo);
+            mVideoCodec.releaseOutputBuffer(outputBufferIndex, false);
         } else {
             //Log.d(TAG, "输入缓冲区索引小于零");
         }
@@ -173,11 +166,7 @@ public class VideoEncoder {
     }
 
     public MediaCodec getEncoder() {
-        return videoEncoder;
-    }
-
-    public static VideoEncoder getInstance() {
-        return instance;
+        return mVideoCodec;
     }
 
     public long getPTSUs() {
@@ -208,4 +197,11 @@ public class VideoEncoder {
     }
 
     // async style mediacodec >21 and polling based for <21
+
+    /**
+     * 获取默认比特率
+     */
+    public static int getDefaultVideoBitRate(int width, int height) {
+        return width * height * 3 / 2;
+    }
 }

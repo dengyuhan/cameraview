@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
  * @description: 音频录制类
  * a wrapper around android's AudioRecord class
  * meant to record audio from microphone input
- * to be operated from the a HandlerThread (AudioRecorderHandlerThread)
+ * to be operated from the a HandlerThread (MediaRecorderThread)
  */
 public class AudioRecorder {
     //    private static final String TAG = AudioRecorder.class.getSimpleName();

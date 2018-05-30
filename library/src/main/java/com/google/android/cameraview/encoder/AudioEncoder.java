@@ -145,7 +145,7 @@ public class AudioEncoder {
             muxer.muxAudio(outputBuffer, bufferInfo);
             audioEncoder.releaseOutputBuffer(outputBufferIndex, false);
         } else {
-            Log.d(TAG, "输入缓冲区索引小于零");
+            //Log.d(TAG, "输入缓冲区索引小于零");
         }
 
     }
