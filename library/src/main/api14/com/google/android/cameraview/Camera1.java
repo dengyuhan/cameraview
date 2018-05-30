@@ -23,6 +23,7 @@ import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.support.v4.util.SparseArrayCompat;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 import com.google.android.cameraview.encoder.MediaRecorderThread;
@@ -491,6 +492,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
         if (mShowingPreview) {
             mCamera.stopPreview();
         }
+        Log.d("setPreviewSize--->", size.getWidth() + " " + size.getHeight());
         mCameraParameters.setPreviewSize(size.getWidth(), size.getHeight());
         mCameraParameters.setPictureSize(pictureSize.getWidth(), pictureSize.getHeight());
         mCameraParameters.setRotation(calcCameraRotation(mDisplayOrientation));

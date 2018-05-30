@@ -191,7 +191,7 @@ public class MainActivity extends AppCompatActivity implements
         final File dir = getExternalFilesDir(
                 Environment.DIRECTORY_PICTURES);
         File file = new File(dir, dir.listFiles().length + ".mp4");
-        mCameraView.record(file.getAbsolutePath(), -1, -1, false,
+        mCameraView.record(file.getAbsolutePath(), -1, -1, true,
                 CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
         startRecordingTimer();
     }

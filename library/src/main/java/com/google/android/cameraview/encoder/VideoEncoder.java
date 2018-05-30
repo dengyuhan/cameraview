@@ -29,24 +29,24 @@ public class VideoEncoder {
 
     private MediaCodec.BufferInfo mBufferInfo;
 
-    private MediaMuxerWrapper muxer;
+    private MediaMuxerWrapper mMediaMuxer;
 
     private long prevOutputPTSUs = 0;
 
-    public VideoEncoder(MediaMuxerWrapper mux, int width, int height) {
-        this(mux, width, height, DEFAULT_FRAME_RATE, getDefaultVideoBitRate(width, height));
+    public VideoEncoder(MediaMuxerWrapper muxer, int width, int height) {
+        this(muxer, width, height, DEFAULT_FRAME_RATE, getDefaultVideoBitRate(width, height));
     }
 
-    public VideoEncoder(MediaMuxerWrapper mux, int width, int height, int frameRate, int bitRate) {
-        this(mux, width, height, frameRate, bitRate, DEFAULT_COLOR_FORMAT);
+    public VideoEncoder(MediaMuxerWrapper muxer, int width, int height, int frameRate, int bitRate) {
+        this(muxer, width, height, frameRate, bitRate, DEFAULT_COLOR_FORMAT);
     }
 
-    public VideoEncoder(MediaMuxerWrapper mux, int width, int height, int frameRate, int bitRate,
+    public VideoEncoder(MediaMuxerWrapper muxer, int width, int height, int frameRate, int bitRate,
             int colorFormat) {
         this.mWidth = width;
         this.mHeight = height;
         this.mBufferInfo = new MediaCodec.BufferInfo();
-        muxer = mux;
+        this.mMediaMuxer = muxer;
 
         try {
             mVideoCodec = MediaCodec.createEncoderByType(MIME_TYPE);
@@ -72,7 +72,7 @@ public class VideoEncoder {
     public void stop() {
         Log.d(TAG, "视频停止编码-->" + Thread.currentThread().getName());
         mVideoCodec.stop();
-        muxer.stopMuxing();
+        mMediaMuxer.stopMuxing();
         isEncoding = false;
     }
 
@@ -92,10 +92,9 @@ public class VideoEncoder {
                 final ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
                 inputBuffer.clear();
 
-                if (input != null) {
-                    //copy ByteBuffer to input buffer
-                    inputBuffer.put(input);
-                }
+                //copy ByteBuffer to input buffer
+                inputBuffer.put(input);
+
                 if (length <= 0) {
                     ////enqueue bytebuffer with EOS
                     mVideoCodec.queueInputBuffer(inputBufferIndex, 0, 0, presentationTimeUs,
@@ -122,11 +121,11 @@ public class VideoEncoder {
         final ByteBuffer[] outputBuffers = mVideoCodec.getOutputBuffers();
 
         final int outputBufferIndex = mVideoCodec.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
+
         if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-            muxer.addVideoEncoder(this);
-            muxer.startMuxing();
-        }
-        if (outputBufferIndex >= 0) {
+            mMediaMuxer.addVideoEncoder(this);
+            mMediaMuxer.startMuxing();
+        } else if (outputBufferIndex >= 0) {
             if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                 // You shoud set output format to muxer here when you target Android4.3 or less
                 // but MediaCodec#getOutputFormat can not call here(because
@@ -136,12 +135,9 @@ public class VideoEncoder {
                 mBufferInfo.size = 0;
             }
             final ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
-            muxer.muxVideo(outputBuffer, mBufferInfo);
+            mMediaMuxer.muxVideo(outputBuffer, mBufferInfo);
             mVideoCodec.releaseOutputBuffer(outputBufferIndex, false);
-        } else {
-            //Log.d(TAG, "输入缓冲区索引小于零");
         }
-
     }
 
     public MediaCodec getEncoder() {
