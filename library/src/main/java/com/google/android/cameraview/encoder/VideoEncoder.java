@@ -37,7 +37,8 @@ public class VideoEncoder {
         this(muxer, width, height, DEFAULT_FRAME_RATE, getDefaultVideoBitRate(width, height));
     }
 
-    public VideoEncoder(MediaMuxerWrapper muxer, int width, int height, int frameRate, int bitRate) {
+    public VideoEncoder(MediaMuxerWrapper muxer, int width, int height, int frameRate,
+            int bitRate) {
         this(muxer, width, height, frameRate, bitRate, DEFAULT_COLOR_FORMAT);
     }
 
@@ -107,12 +108,9 @@ public class VideoEncoder {
             } else {
                 //Log.d(TAG, "输入缓冲区索引小于零");
             }
-        }
 
-        sendToMediaMuxer();
-        //get outputByteBuffer
-        //take data from outputByteBuffer
-        //send to mediamuxer
+            sendToMediaMuxer();
+        }
     }
 
     public void sendToMediaMuxer() {
