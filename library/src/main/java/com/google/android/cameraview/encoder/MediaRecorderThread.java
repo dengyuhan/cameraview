@@ -8,7 +8,7 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.util.Log;
 
-import com.google.android.cameraview.utils.YUVRotateUtil;
+import com.google.android.cameraview.utils.YUVUtils;
 
 public class MediaRecorderThread extends HandlerThread implements Handler.Callback,
         IMediaRecorder {
@@ -109,10 +109,12 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
     private void handleEncodeFrame(byte[] data, int width, int height) {
         //Log.d("handleEncodeFrame-->",data.length + " " + width + " " + height + " " + Thread
         // .currentThread().getName());
-        final byte[] tempData = YUVRotateUtil.rotateYUV420Degree90(data, width, height);
+        final byte[] tempData = YUVUtils.rotateYUV420Degree90(data, width, height);
+        if (tempData != null) {
+            mVideoEncoder.encode(tempData, tempData.length,
+                    mVideoEncoder.getPTSUs());
+        }
 
-        mVideoEncoder.encode(tempData, tempData.length,
-                mVideoEncoder.getPTSUs());
     }
 
 
@@ -181,11 +183,13 @@ public class MediaRecorderThread extends HandlerThread implements Handler.Callba
 
     public void sendEncodeFrame(byte[] data, int width, int height) {
         handleEncodeFrame(data, width, height);
-        /*if (mRecorderHandler == null) {
+        /*
+        if (mRecorderHandler == null) {
             return;
         }
         Message msg = Message.obtain(null, MSG_ENCODE_VIDEO, width, height, data);
-        mRecorderHandler.sendMessage(msg);*/
+        mRecorderHandler.sendMessage(msg);
+        */
     }
 
 

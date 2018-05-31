@@ -22,6 +22,12 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+
+        externalNativeBuild {
+            cmake {
+                cppFlags ""
+            }
+        }
     }
     buildTypes {
         release {
@@ -35,6 +41,12 @@ android {
         main.java.srcDirs += 'src/main/api14'
         main.java.srcDirs += 'src/main/api21'
         main.java.srcDirs += 'src/main/api23'
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
     }
 }
 

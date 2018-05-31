@@ -1,38 +1,28 @@
-/*
- * Copyright (C) 2016 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 package com.google.android.cameraview.utils;
 
-/**
- * @author: sq
- * @date: 2017/6/28
- * @corporation: 深圳市思迪信息科技有限公司
- * @description: 图像旋转工具类
- */
-public class YUVRotateUtil {
+public class YUVUtils {
+
+    static {
+        System.loadLibrary("yuv-utils");
+    }
+
+    public static native void nativeNV21ToNV12(byte[] nv21, byte[] nv12, int width, int height);
 
     /**
-     * 旋转90度
-     * @param data
+     * 实测感觉还没有java的快
+     * @param src
      * @param imageWidth
      * @param imageHeight
      * @return
      */
-    public static byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight) {
+    public static native byte[] nativeRotateYUV420Degree90(byte[] src, int imageWidth,
+            int imageHeight);
 
+    /**
+     * 旋转90度
+     */
+    public static byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight) {
         byte[] yuv = new byte[imageWidth * imageHeight * 3 / 2];
         // Rotate the Y luma
         int i = 0;
@@ -58,10 +48,6 @@ public class YUVRotateUtil {
 
     /**
      * 旋转180度
-     * @param data
-     * @param imageWidth
-     * @param imageHeight
-     * @return
      */
     public static byte[] rotateYUV420Degree180(byte[] data, int imageWidth, int imageHeight) {
         byte[] yuv = new byte[imageWidth * imageHeight * 3 / 2];
@@ -84,10 +70,6 @@ public class YUVRotateUtil {
 
     /**
      * 旋转270度
-     * @param data
-     * @param imageWidth
-     * @param imageHeight
-     * @return
      */
     public static byte[] rotateYUV420Degree270(byte[] data, int imageWidth, int imageHeight) {
         byte[] yuv = new byte[imageWidth * imageHeight * 3 / 2];
@@ -175,4 +157,20 @@ public class YUVRotateUtil {
         return yuv;
     }
 
+
+    public static void NV21ToNV12(byte[] nv21, byte[] nv12, int width, int height) {
+        if (nv21 == null || nv12 == null) return;
+        int framesize = width * height;
+        int i = 0, j = 0;
+        System.arraycopy(nv21, 0, nv12, 0, framesize);
+        for (i = 0; i < framesize; i++) {
+            nv12[i] = nv21[i];
+        }
+        for (j = 0; j < framesize / 2; j += 2) {
+            nv12[framesize + j - 1] = nv21[j + framesize];
+        }
+        for (j = 0; j < framesize / 2; j += 2) {
+            nv12[framesize + j] = nv21[j + framesize - 1];
+        }
+    }
 }
