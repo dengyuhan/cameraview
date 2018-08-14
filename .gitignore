@@ -8,3 +8,4 @@
 .idea/
 !.idea/copyright/*.xml
 !.idea/codeStyleSettings.xml
+library/.externalNativeBuild
