@@ -706,11 +706,15 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
      */
     private void startOpeningCamera() {
         try {
+            mCameraManager.openCamera(mCameraId, mCameraDeviceCallback, null);
+            /*
+            //存在打开摄像头比registerAvailabilityCallback先执行的问题 先注掉
             if (mAvailableCameras.contains(String.valueOf(mCameraId))) {
                 mCameraManager.openCamera(mCameraId, mCameraDeviceCallback, null);
             } else {
                 mCallback.onMountError();
             }
+            */
         } catch (CameraAccessException e) {
             throw new RuntimeException("Failed to open camera: " + mCameraId, e);
         }
