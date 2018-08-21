@@ -93,6 +93,8 @@ abstract class CameraViewImpl {
 
     abstract boolean getScanning();
 
+    abstract int getCurrentCameraId();
+
     interface Callback {
 
         void onCameraOpened();

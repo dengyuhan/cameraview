@@ -469,6 +469,10 @@ public class CameraView extends FrameLayout {
         mImpl.stopRecording();
     }
 
+    public int getCurrentCameraId() {
+        return mImpl.getCurrentCameraId();
+    }
+
     private class CallbackBridge implements CameraViewImpl.Callback {
 
         private final ArrayList<Callback> mCallbacks = new ArrayList<>();

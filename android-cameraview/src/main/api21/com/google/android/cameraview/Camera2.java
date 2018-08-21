@@ -234,6 +234,9 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
 
     private boolean mIsScanning;
 
+    //前后摄像头是否都支持Camera2 null=未检测,true支持,false不支持
+    private Boolean mDoubleSupported;
+
     Camera2(Callback callback, PreviewImpl preview, Context context) {
         super(callback, preview);
         mCameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
@@ -579,6 +582,16 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     @Override
+    int getCurrentCameraId() {
+        try {
+            return Integer.parseInt(mCameraId);
+        }catch (Exception e) {
+            e.printStackTrace();
+            return CameraCharacteristics.LENS_FACING_BACK;
+        }
+    }
+
+    @Override
     void setDisplayOrientation(int displayOrientation) {
         mDisplayOrientation = displayOrientation;
         mPreview.setDisplayOrientation(mDisplayOrientation);
@@ -596,14 +609,37 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             if (ids.length == 0) { // No camera
                 throw new RuntimeException("No camera available.");
             }
+
+            //如果还没有检查是否支持Camera2
+            if (mDoubleSupported == null) {
+                mDoubleSupported = true;
+                for (String id : ids) {
+                    CameraCharacteristics characteristics = mCameraManager.getCameraCharacteristics(
+                            id);
+                    Integer level = characteristics.get(
+                            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
+                    if (level == null ||
+                            level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
+                        mDoubleSupported = false;
+                        break;
+                    }
+                }
+            }
+            //如果前后摄像头都不支持Camera2,return false使用Camera1
+            if (!mDoubleSupported) {
+                return false;
+            }
+
             for (String id : ids) {
                 CameraCharacteristics characteristics = mCameraManager.getCameraCharacteristics(id);
+                /*
                 Integer level = characteristics.get(
                         CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
                 if (level == null ||
                         level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
                     continue;
                 }
+                */
                 Integer internal = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (internal == null) {
                     throw new NullPointerException("Unexpected state: LENS_FACING null");
