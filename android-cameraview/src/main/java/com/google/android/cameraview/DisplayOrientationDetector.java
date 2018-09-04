@@ -25,7 +25,10 @@ import android.view.Surface;
 
 /**
  * Monitors the value returned from {@link Display#getRotation()}.
+ *
+ * @deprecated {@link com.google.android.cameraview.DisplayOrientationDetector2}
  */
+@Deprecated
 abstract class DisplayOrientationDetector {
 
     private final OrientationEventListener mOrientationEventListener;

@@ -29,6 +29,7 @@ import android.support.v4.os.ParcelableCompat;
 import android.support.v4.os.ParcelableCompatCreatorCallbacks;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 
@@ -77,7 +78,7 @@ public class CameraView extends FrameLayout {
 
     private boolean mAdjustViewBounds;
 
-    private final DisplayOrientationDetector mDisplayOrientationDetector;
+    private final DisplayOrientationDetector2 mDisplayOrientationDetector;
 
     public CameraView(Context context) {
         this(context, null);
@@ -109,10 +110,18 @@ public class CameraView extends FrameLayout {
         mAdjustViewBounds = true;
 
         // Display orientation detector
-        mDisplayOrientationDetector = new DisplayOrientationDetector(context) {
-            @Override
+        mDisplayOrientationDetector = new DisplayOrientationDetector2(context) {
+
             public void onDisplayOrientationChanged(int displayOrientation) {
-                mImpl.setDisplayOrientation(displayOrientation);
+                Log.d("拍照------->", displayOrientation + "");
+                mImpl.setDisplayOrientation(displayOrientation, displayOrientation);
+            }
+
+            @Override
+            public void onDisplayOrDeviceOrientationChanged(int displayOrientation,
+                    int deviceOrientation) {
+                Log.d("拍照------->", displayOrientation + " " + deviceOrientation);
+                mImpl.setDisplayOrientation(displayOrientation, deviceOrientation);
             }
         };
     }
