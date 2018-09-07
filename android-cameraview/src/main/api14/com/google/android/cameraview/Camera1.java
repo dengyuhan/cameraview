@@ -719,7 +719,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             setCamcorderProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH), recordAudio);
         }
 
-        mMediaRecorder.setOrientationHint(calcDisplayOrientation(mDeviceOrientation));
+        mMediaRecorder.setOrientationHint(calcCameraRotation(mDeviceOrientation));
 
         if (maxDuration != -1) {
             mMediaRecorder.setMaxDuration(maxDuration);
