@@ -95,6 +95,7 @@ public class MainActivity extends AppCompatActivity implements
 
     private int mCurrentFlash;
 
+    Toolbar mToolbar;
     CameraView mCameraView;
     TextView mRecordingTimeView;
     ImageView mChangeModeView;
@@ -152,8 +153,8 @@ public class MainActivity extends AppCompatActivity implements
         mShutterView = findViewById(R.id.take_picture);
         mShutterView.setOnClickListener(mOnClickListener);
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        mToolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(mToolbar);
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setDisplayShowTitleEnabled(false);
@@ -175,6 +176,9 @@ public class MainActivity extends AppCompatActivity implements
     @NeedsPermission(Manifest.permission.CAMERA)
     void onGrantedCamera() {
         mCameraView.start();
+        if (mToolbar != null) {
+            mToolbar.setTitle(mCameraView.getCameraApiName());
+        }
     }
 
     @OnPermissionDenied(Manifest.permission.CAMERA)

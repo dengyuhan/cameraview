@@ -482,6 +482,10 @@ public class CameraView extends FrameLayout {
         return mImpl.getCurrentCameraId();
     }
 
+    public String getCameraApiName() {
+        return mImpl.getClass().getSimpleName();
+    }
+
     private class CallbackBridge implements CameraViewImpl.Callback {
 
         private final ArrayList<Callback> mCallbacks = new ArrayList<>();
