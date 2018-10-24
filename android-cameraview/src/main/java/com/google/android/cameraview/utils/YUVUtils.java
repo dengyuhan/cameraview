@@ -3,22 +3,6 @@ package com.google.android.cameraview.utils;
 
 public class YUVUtils {
 
-    static {
-        System.loadLibrary("yuv-utils");
-    }
-
-    public static native void nativeNV21ToNV12(byte[] nv21, byte[] nv12, int width, int height);
-
-    /**
-     * 实测感觉还没有java的快
-     * @param src
-     * @param imageWidth
-     * @param imageHeight
-     * @return
-     */
-    public static native byte[] nativeRotateYUV420Degree90(byte[] src, int imageWidth,
-            int imageHeight);
-
     /**
      * 旋转90度
      */

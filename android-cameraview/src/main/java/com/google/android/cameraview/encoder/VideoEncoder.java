@@ -84,7 +84,7 @@ public class VideoEncoder {
         if (isEncoding) {
 
             byte[] yuv420sp = new byte[mWidth * mHeight * 3 / 2];
-            YUVUtils.nativeNV21ToNV12(input, yuv420sp, mWidth, mHeight);
+            YUVUtils.NV21ToNV12(input, yuv420sp, mWidth, mHeight);
             input = yuv420sp;
 
             final ByteBuffer[] inputBuffers = mVideoCodec.getInputBuffers();
