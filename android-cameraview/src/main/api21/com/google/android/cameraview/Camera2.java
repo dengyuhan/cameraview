@@ -765,7 +765,6 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
      * <p>The result will be continuously processed in {@link #mSessionCallback}.</p>
      */
     void startCaptureSession() {
-        Log.d("--------->","啊啊啊啊啊");
         if (!isCameraOpened() || !mPreview.isReady() || mStillImageReader == null
                 || mScanImageReader == null) {
             return;

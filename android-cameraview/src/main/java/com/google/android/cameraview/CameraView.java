@@ -18,6 +18,7 @@ package com.google.android.cameraview;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.media.CamcorderProfile;
 import android.os.Build;
 import android.os.Parcel;
@@ -29,7 +30,6 @@ import android.support.v4.os.ParcelableCompat;
 import android.support.v4.os.ParcelableCompatCreatorCallbacks;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 
@@ -39,6 +39,10 @@ import java.util.ArrayList;
 import java.util.Set;
 
 public class CameraView extends FrameLayout {
+    public static final int AUTO = 0;
+    public static final int CAMERA1 = 1;
+    public static final int CAMERA2 = 2;
+    public static final int CAMERA2_PLUS = 3;
 
     /**
      * The camera device faces the opposite direction as the device's screen.
@@ -109,6 +113,8 @@ public class CameraView extends FrameLayout {
     @SuppressWarnings("WrongConstant")
     public CameraView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+        final TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.CameraView);
+        int cameraType = a.getInt(R.styleable.CameraView_camera, AUTO);
         if (isInEditMode()) {
             mCallbacks = null;
             mDisplayOrientationDetector = null;
@@ -117,9 +123,9 @@ public class CameraView extends FrameLayout {
         // Internal setup
         final PreviewImpl preview = createPreviewImpl(context);
         mCallbacks = new CallbackBridge();
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || CAMERA1 == cameraType) {
             mImpl = new Camera1(mCallbacks, preview);
-        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || CAMERA2 == cameraType) {
             mImpl = new Camera2(mCallbacks, preview, context);
         } else {
             mImpl = new Camera2Api23(mCallbacks, preview, context);
@@ -131,14 +137,12 @@ public class CameraView extends FrameLayout {
         mDisplayOrientationDetector = new DisplayOrientationDetector2(context) {
 
             public void onDisplayOrientationChanged(int displayOrientation) {
-                Log.d("拍照------->", displayOrientation + "");
                 mImpl.setDisplayOrientation(displayOrientation, displayOrientation);
             }
 
             @Override
             public void onDisplayOrDeviceOrientationChanged(int displayOrientation,
                                                             int deviceOrientation) {
-                Log.d("拍照------->", displayOrientation + " " + deviceOrientation);
                 mImpl.setDisplayOrientation(displayOrientation, deviceOrientation);
             }
         };

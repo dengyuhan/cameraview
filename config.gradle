@@ -20,8 +20,8 @@ ext {
                     applicationId    : "com.google.android.cameraview.demo",
 
                     //版本号
-                    versionCode      : 6,
-                    versionName      : "1.0.0-beta5",
+                    versionCode      : 7,
+                    versionName      : "1.0.0-beta6",
 
                     //sdk版本
                     compileSdkVersion: 27,
