@@ -441,7 +441,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
 
     @Override
     boolean record(String path, int maxDuration, int maxFileSize, boolean recordAudio,
-            CamcorderProfile profile) {
+                   CamcorderProfile profile) {
         if (!mIsRecording) {
             setUpMediaRecorder(path, maxDuration, maxFileSize, recordAudio, profile);
             try {
@@ -587,7 +587,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     int getCurrentCameraId() {
         try {
             return Integer.parseInt(mCameraId);
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return CameraCharacteristics.LENS_FACING_BACK;
         }
@@ -765,6 +765,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
      * <p>The result will be continuously processed in {@link #mSessionCallback}.</p>
      */
     void startCaptureSession() {
+        Log.d("--------->","啊啊啊啊啊");
         if (!isCameraOpened() || !mPreview.isReady() || mStillImageReader == null
                 || mScanImageReader == null) {
             return;
@@ -780,8 +781,8 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
             }
             mCamera.createCaptureSession(Arrays.asList(surface, mStillImageReader.getSurface(),
                     mScanImageReader.getSurface()), mSessionCallback, null);
-        } catch (CameraAccessException e) {
-            throw new RuntimeException("Failed to start camera session");
+        } catch (Exception e) {
+            mCallback.onCameraError(new CameraOpenException("Failed to start camera session", e));
         }
     }
 
@@ -1015,8 +1016,8 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
                     new CameraCaptureSession.CaptureCallback() {
                         @Override
                         public void onCaptureCompleted(@NonNull CameraCaptureSession session,
-                                @NonNull CaptureRequest request,
-                                @NonNull TotalCaptureResult result) {
+                                                       @NonNull CaptureRequest request,
+                                                       @NonNull TotalCaptureResult result) {
                             unlockFocus();
                         }
                     }, null);
@@ -1035,7 +1036,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     private void setUpMediaRecorder(String path, int maxDuration, int maxFileSize,
-            boolean recordAudio, CamcorderProfile profile) {
+                                    boolean recordAudio, CamcorderProfile profile) {
         mMediaRecorder = new MediaRecorder();
 
         mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
@@ -1168,13 +1169,13 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
 
         @Override
         public void onCaptureProgressed(@NonNull CameraCaptureSession session,
-                @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
+                                        @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
             process(partialResult);
         }
 
         @Override
         public void onCaptureCompleted(@NonNull CameraCaptureSession session,
-                @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                                       @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
             process(result);
         }
 

@@ -122,7 +122,7 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     boolean start() {
         chooseCamera();
         if (!openCamera()) {
-            mCallback.onMountError();
+            mCallback.onCameraError(new CameraOpenException());
             // returning false will result in invoking this method again
             return true;
         }
